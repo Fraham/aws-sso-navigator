@@ -8,7 +8,7 @@ use dirs::home_dir;
 use std::path::PathBuf;
 
 use config::{load_recent_profiles, load_settings, save_recent_profile};
-use profile::{load_profiles, select_unique_values, Profile};
+use profile::{load_profiles, select_unique_values};
 use ui::skim_pick;
 
 #[derive(Parser, Debug)]
@@ -31,6 +31,9 @@ struct Args {
     /// If set, use a unified picker instead of step-by-step
     #[arg(long)]
     unified: bool,
+    /// If set, use step-by-step mode (overrides config unified_mode)
+    #[arg(long)]
+    step_by_step: bool,
     /// Path to AWS config
     #[arg(long)]
     aws_config_path: Option<PathBuf>,
@@ -63,7 +66,11 @@ fn main() {
     let mut chosen_account = args.account.or(settings.default_account);
     let mut chosen_role = args.role.or(settings.default_role);
 
-    let unified_mode = args.unified || settings.unified_mode.unwrap_or_default();
+    let unified_mode = if args.step_by_step {
+        false
+    } else {
+        args.unified || settings.unified_mode.unwrap_or_default()
+    };
     let set_default = args.set_default || settings.set_default.unwrap_or_default();
     let list = args.list || settings.list.unwrap_or_default();
     let recent = args.recent || settings.recent.unwrap_or_default();

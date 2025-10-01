@@ -9,11 +9,11 @@ pub fn login_to_profile(profile_name: &str) -> Result<(), String> {
         .arg(profile_name)
         .status()
         .map_err(|e| format!("Failed to execute aws: {}", e))?;
-    
+
     if !status.success() {
         return Err("AWS SSO login failed".to_string());
     }
-    
+
     Ok(())
 }
 
