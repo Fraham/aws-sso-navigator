@@ -49,6 +49,14 @@ Use a different AWS config file:
 aws-sso-navigator --aws-config-path /path/to/config
 ```
 
+### Set as Default Profile
+
+Set the selected profile as the default AWS profile:
+
+```bash
+aws-sso-navigator --set-default
+```
+
 ## Profile Format
 
 Profiles must follow the naming convention: `client-account-role`
