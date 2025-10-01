@@ -9,5 +9,8 @@ default_role = "admin"
 # Use unified mode by default (optional)
 unified_mode = false
 
+# Set selected profile as default (optional)
+set_default = false
+
 # Custom AWS config path (optional)
 # aws_config_path = "/path/to/custom/config"

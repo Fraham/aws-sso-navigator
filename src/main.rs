@@ -48,6 +48,7 @@ struct Settings {
     default_role: Option<String>,
     unified_mode: Option<bool>,
     aws_config_path: Option<PathBuf>,
+    set_default: Option<bool>,
 }
 
 impl Default for Settings {
@@ -58,6 +59,7 @@ impl Default for Settings {
             default_role: None,
             unified_mode: Some(false),
             aws_config_path: None,
+            set_default: Some(false),
         }
     }
 }
@@ -175,10 +177,10 @@ fn skim_pick(prompt: &str, options: Vec<String>) -> Option<String> {
     let input = options.join("\n");
     let prompt_str = format!("{}> ", prompt);
     let options = SkimOptionsBuilder::default()
-        .prompt(Some(&prompt_str))
-        .height(Some("50%"))
+        .prompt(prompt_str)
+        .height("50%".to_string())
         .multi(false)
-        .bind(vec!["esc:abort"])
+        .bind(vec!["esc:abort".to_string()])
         .build()
         .unwrap();
     let item_reader = SkimItemReader::default();
@@ -214,6 +216,7 @@ fn main() {
     let mut chosen_account = args.account.or(settings.default_account);
     let mut chosen_role = args.role.or(settings.default_role);
     let unified_mode = args.unified || settings.unified_mode.unwrap_or(false);
+    let set_default = args.set_default || settings.set_default.unwrap_or(false);
     if unified_mode {
         // Unified picker mode
         let rows: Vec<String> = profiles
@@ -285,7 +288,7 @@ fn main() {
                 std::process::exit(1);
             }
             
-            if args.set_default {
+            if set_default {
                 if let Err(e) = set_default_profile(&profile.name) {
                     eprintln!("Warning: Failed to set default profile: {}", e);
                 }
