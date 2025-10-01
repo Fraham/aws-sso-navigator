@@ -85,6 +85,62 @@ fn set_default_profile(profile_name: &str) -> Result<(), std::io::Error> {
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_load_profiles_empty_file() {
+        let temp_file = NamedTempFile::new().unwrap();
+        let profiles = load_profiles(&temp_file.path().to_path_buf());
+        assert!(profiles.is_empty());
+    }
+
+    #[test]
+    fn test_load_profiles_valid_format() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "[profile client1-dev-admin]").unwrap();
+        writeln!(temp_file, "sso_start_url = https://example.com").unwrap();
+        writeln!(temp_file, "[profile client2-prod-readonly]").unwrap();
+        
+        let profiles = load_profiles(&temp_file.path().to_path_buf());
+        assert_eq!(profiles.len(), 2);
+        
+        assert_eq!(profiles[0].client, "client1");
+        assert_eq!(profiles[0].account, "dev");
+        assert_eq!(profiles[0].role, "admin");
+        assert_eq!(profiles[0].name, "client1-dev-admin");
+        
+        assert_eq!(profiles[1].client, "client2");
+        assert_eq!(profiles[1].account, "prod");
+        assert_eq!(profiles[1].role, "readonly");
+    }
+
+    #[test]
+    fn test_load_profiles_invalid_format() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "[profile invalid]").unwrap();
+        writeln!(temp_file, "[profile client-dev]").unwrap();
+        writeln!(temp_file, "[profile valid-dev-admin]").unwrap();
+        
+        let profiles = load_profiles(&temp_file.path().to_path_buf());
+        assert_eq!(profiles.len(), 1);
+        assert_eq!(profiles[0].name, "valid-dev-admin");
+    }
+
+    #[test]
+    fn test_load_profiles_multi_part_role() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "[profile client-dev-power-user-access]").unwrap();
+        
+        let profiles = load_profiles(&temp_file.path().to_path_buf());
+        assert_eq!(profiles.len(), 1);
+        assert_eq!(profiles[0].role, "power-user-access");
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(
     name = "aws-sso-navigator",
