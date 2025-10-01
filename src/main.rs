@@ -53,6 +53,14 @@ fn load_settings() -> Settings {
     }
 }
 
+fn set_default_profile(profile_name: &str) -> Result<(), std::io::Error> {
+    unsafe {
+        std::env::set_var("AWS_PROFILE", profile_name);
+    }
+    println!("Set {} as default AWS profile", profile_name);
+    Ok(())
+}
+
 #[derive(Parser, Debug)]
 #[command(
     name = "aws-sso-navigator",
@@ -76,6 +84,9 @@ struct Args {
     /// Path to AWS config
     #[arg(long)]
     aws_config_path: Option<PathBuf>,
+    /// Set the selected profile as the default AWS profile
+    #[arg(long)]
+    set_default: bool,
 }
 
 fn load_profiles(config_path: PathBuf) -> Vec<Profile> {
@@ -214,6 +225,12 @@ fn main() {
             if !status.success() {
                 eprintln!("AWS SSO login failed");
                 std::process::exit(1);
+            }
+            
+            if args.set_default {
+                if let Err(e) = set_default_profile(&profile.name) {
+                    eprintln!("Warning: Failed to set default profile: {}", e);
+                }
             }
         } else {
             eprintln!("No matching profile found");
