@@ -5,7 +5,7 @@ A CLI tool to interactively select and login to AWS SSO profiles with fuzzy sele
 ## Installation
 
 ```bash
-cargo build --release
+cargo install --path .
 ```
 
 ## Usage
