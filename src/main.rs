@@ -1,6 +1,7 @@
 use clap::Parser;
 use dirs::home_dir;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use skim::prelude::*;
 use std::collections::BTreeSet;
 use std::fs;
@@ -14,6 +15,42 @@ struct Profile {
     account: String,
     role: String,
     name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Settings {
+    default_client: Option<String>,
+    default_account: Option<String>,
+    default_role: Option<String>,
+    unified_mode: Option<bool>,
+    aws_config_path: Option<PathBuf>,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            default_client: None,
+            default_account: None,
+            default_role: None,
+            unified_mode: Some(false),
+            aws_config_path: None,
+        }
+    }
+}
+
+fn load_settings() -> Settings {
+    let settings_path = home_dir()
+        .unwrap()
+        .join(".config")
+        .join("aws-sso-navigator")
+        .join("config.toml");
+    
+    if settings_path.exists() {
+        let contents = fs::read_to_string(&settings_path).unwrap_or_default();
+        toml::from_str(&contents).unwrap_or_default()
+    } else {
+        Settings::default()
+    }
 }
 
 #[derive(Parser, Debug)]
@@ -102,10 +139,13 @@ fn main() {
         eprintln!("No profiles found");
         std::process::exit(1);
     }
-    let mut chosen_client = args.client.clone();
-    let mut chosen_account = args.account.clone();
-    let mut chosen_role = args.role.clone();
-    if args.unified {
+    let settings = load_settings();
+    
+    let mut chosen_client = args.client.or(settings.default_client);
+    let mut chosen_account = args.account.or(settings.default_account);
+    let mut chosen_role = args.role.or(settings.default_role);
+    let unified_mode = args.unified || settings.unified_mode.unwrap_or(false);
+    if unified_mode {
         // Unified picker mode
         let rows: Vec<String> = profiles
             .iter()

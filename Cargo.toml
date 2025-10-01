@@ -8,3 +8,5 @@ regex = "1"
 dirs = "5"
 clap = { version = "4", features = ["derive"]}
 skim = "0.10"
+serde = { version = "1", features = ["derive"]}
+toml = "0.8"

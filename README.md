@@ -79,6 +79,23 @@ aws-sso-navigator --help
 aws-sso-navigator --version
 ```
 
+## Configuration
+
+Optional settings file at `~/.config/aws-sso-navigator/config.toml`:
+
+```toml
+# Default values to pre-select
+default_client = "myclient"
+default_account = "dev" 
+default_role = "admin"
+
+# Use unified mode by default
+unified_mode = false
+
+# Custom AWS config path
+# aws_config_path = "/path/to/custom/config"
+```
+
 ## Requirements
 
 - AWS CLI installed and configured
