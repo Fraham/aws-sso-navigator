@@ -12,5 +12,14 @@ unified_mode = false
 # Set selected profile as default (optional)
 set_default = false
 
+# List profiles without selection (optional)
+list = false
+
+# Show recent profiles first (optional)
+recent = false
+
+# Maximum number of recent profiles to keep (optional)
+max_recent_profiles = 100
+
 # Custom AWS config path (optional)
 # aws_config_path = "/path/to/custom/config"

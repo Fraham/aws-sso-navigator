@@ -3,11 +3,12 @@ use dirs::home_dir;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use skim::prelude::*;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::io::Cursor;
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone)]
 struct Profile {
@@ -49,6 +50,14 @@ struct Settings {
     unified_mode: Option<bool>,
     aws_config_path: Option<PathBuf>,
     set_default: Option<bool>,
+    list: Option<bool>,
+    recent: Option<bool>,
+    max_recent_profiles: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Default)]
+struct RecentProfiles {
+    profiles: HashMap<String, u64>, // profile_name -> timestamp
 }
 
 impl Default for Settings {
@@ -60,7 +69,54 @@ impl Default for Settings {
             unified_mode: Some(false),
             aws_config_path: None,
             set_default: Some(false),
+            list: Some(false),
+            recent: Some(false),
+            max_recent_profiles: Some(100),
         }
+    }
+}
+
+fn load_recent_profiles() -> RecentProfiles {
+    let recent_path = home_dir()
+        .unwrap()
+        .join(".config")
+        .join("aws-sso-navigator")
+        .join("recent.toml");
+
+    if recent_path.exists() {
+        let contents = fs::read_to_string(&recent_path).unwrap_or_default();
+        toml::from_str(&contents).unwrap_or_default()
+    } else {
+        RecentProfiles::default()
+    }
+}
+
+fn save_recent_profile(profile_name: &str, max_entries: usize) {
+    let config_dir = home_dir()
+        .unwrap()
+        .join(".config")
+        .join("aws-sso-navigator");
+
+    fs::create_dir_all(&config_dir).ok();
+
+    let mut recent = load_recent_profiles();
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    recent.profiles.insert(profile_name.to_string(), timestamp);
+
+    // Keep only the configured number of most recent profiles
+    if recent.profiles.len() > max_entries {
+        let mut sorted: Vec<_> = recent.profiles.iter().collect();
+        sorted.sort_by(|a, b| b.1.cmp(a.1)); // Sort by timestamp descending
+        recent.profiles = sorted.into_iter().take(max_entries).map(|(k, v)| (k.clone(), *v)).collect();
+    }
+
+    let recent_path = config_dir.join("recent.toml");
+    if let Ok(contents) = toml::to_string(&recent) {
+        fs::write(&recent_path, contents).ok();
     }
 }
 
@@ -70,7 +126,7 @@ fn load_settings() -> Settings {
         .join(".config")
         .join("aws-sso-navigator")
         .join("config.toml");
-    
+
     if settings_path.exists() {
         let contents = fs::read_to_string(&settings_path).unwrap_or_default();
         toml::from_str(&contents).unwrap_or_default()
@@ -106,15 +162,15 @@ mod tests {
         writeln!(temp_file, "[profile client1-dev-admin]").unwrap();
         writeln!(temp_file, "sso_start_url = https://example.com").unwrap();
         writeln!(temp_file, "[profile client2-prod-readonly]").unwrap();
-        
+
         let profiles = load_profiles(&temp_file.path().to_path_buf());
         assert_eq!(profiles.len(), 2);
-        
+
         assert_eq!(profiles[0].client, "client1");
         assert_eq!(profiles[0].account, "dev");
         assert_eq!(profiles[0].role, "admin");
         assert_eq!(profiles[0].name, "client1-dev-admin");
-        
+
         assert_eq!(profiles[1].client, "client2");
         assert_eq!(profiles[1].account, "prod");
         assert_eq!(profiles[1].role, "readonly");
@@ -126,7 +182,7 @@ mod tests {
         writeln!(temp_file, "[profile invalid]").unwrap();
         writeln!(temp_file, "[profile client-dev]").unwrap();
         writeln!(temp_file, "[profile valid-dev-admin]").unwrap();
-        
+
         let profiles = load_profiles(&temp_file.path().to_path_buf());
         assert_eq!(profiles.len(), 1);
         assert_eq!(profiles[0].name, "valid-dev-admin");
@@ -136,7 +192,7 @@ mod tests {
     fn test_load_profiles_multi_part_role() {
         let mut temp_file = NamedTempFile::new().unwrap();
         writeln!(temp_file, "[profile client-dev-power-user-access]").unwrap();
-        
+
         let profiles = load_profiles(&temp_file.path().to_path_buf());
         assert_eq!(profiles.len(), 1);
         assert_eq!(profiles[0].role, "power-user-access");
@@ -169,9 +225,13 @@ struct Args {
     /// Set the selected profile as the default AWS profile
     #[arg(long)]
     set_default: bool,
+    /// List all profiles without selection
+    #[arg(long)]
+    list: bool,
+    /// Show recently used profiles first
+    #[arg(long)]
+    recent: bool,
 }
-
-
 
 fn skim_pick(prompt: &str, options: Vec<String>) -> Option<String> {
     let input = options.join("\n");
@@ -186,10 +246,10 @@ fn skim_pick(prompt: &str, options: Vec<String>) -> Option<String> {
     let item_reader = SkimItemReader::default();
     let items = item_reader.of_bufread(Cursor::new(input));
     let output = Skim::run_with(&options, Some(items))?;
-    
+
     // Clear the screen after skim
     print!("\x1B[2J\x1B[1;1H");
-    
+
     if output.is_abort {
         return None;
     }
@@ -205,18 +265,38 @@ fn main() {
     let config_path = args
         .aws_config_path
         .unwrap_or_else(|| home_dir().unwrap().join(".aws").join("config"));
-    let profiles = load_profiles(&config_path);
+    let mut profiles = load_profiles(&config_path);
+
     if profiles.is_empty() {
         eprintln!("No profiles found");
         std::process::exit(1);
     }
     let settings = load_settings();
-    
+
     let mut chosen_client = args.client.or(settings.default_client);
     let mut chosen_account = args.account.or(settings.default_account);
     let mut chosen_role = args.role.or(settings.default_role);
     let unified_mode = args.unified || settings.unified_mode.unwrap_or(false);
     let set_default = args.set_default || settings.set_default.unwrap_or(false);
+    let list = args.list || settings.list.unwrap_or(false);
+    let recent = args.recent || settings.recent.unwrap_or(false);
+
+    if recent {
+        let recent = load_recent_profiles();
+        profiles.sort_by(|a, b| {
+            let a_time = recent.profiles.get(&a.name).unwrap_or(&0);
+            let b_time = recent.profiles.get(&b.name).unwrap_or(&0);
+            b_time.cmp(a_time)
+        });
+    }
+
+    if list {
+        for profile in &profiles {
+            println!("{}", profile.name);
+        }
+        return;
+    }
+
     if unified_mode {
         // Unified picker mode
         let rows: Vec<String> = profiles
@@ -235,7 +315,12 @@ fn main() {
     } else {
         // Step-by-step mode
         if chosen_client.is_none() {
-            let clients: Vec<String> = profiles.iter().map(|p| p.client.clone()).collect::<BTreeSet<_>>().into_iter().collect();
+            let clients: Vec<String> = profiles
+                .iter()
+                .map(|p| p.client.clone())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect();
             chosen_client = match skim_pick("Select Client", clients) {
                 Some(client) => Some(client),
                 None => return,
@@ -254,7 +339,8 @@ fn main() {
                 None => return,
             };
         }
-        if let (Some(client), Some(account), None) = (&chosen_client, &chosen_account, &chosen_role) {
+        if let (Some(client), Some(account), None) = (&chosen_client, &chosen_account, &chosen_role)
+        {
             let roles: Vec<String> = profiles
                 .iter()
                 .filter(|p| &p.client == client && &p.account == account)
@@ -287,7 +373,10 @@ fn main() {
                 eprintln!("AWS SSO login failed");
                 std::process::exit(1);
             }
-            
+
+            let max_recent = settings.max_recent_profiles.unwrap_or(100);
+            save_recent_profile(&profile.name, max_recent);
+
             if set_default {
                 if let Err(e) = set_default_profile(&profile.name) {
                     eprintln!("Warning: Failed to set default profile: {}", e);

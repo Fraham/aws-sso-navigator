@@ -57,6 +57,22 @@ Set the selected profile as the default AWS profile:
 aws-sso-navigator --set-default
 ```
 
+### List All Profiles
+
+Show all available profiles without selection:
+
+```bash
+aws-sso-navigator --list
+```
+
+### Recent Profiles First
+
+Show recently used profiles at the top:
+
+```bash
+aws-sso-navigator --recent
+```
+
 ## Profile Format
 
 Profiles must follow the naming convention: `client-account-role`
@@ -102,6 +118,15 @@ unified_mode = false
 
 # Set selected profile as default
 set_default = false
+
+# List profiles without selection
+list = false
+
+# Show recent profiles first
+recent = false
+
+# Maximum number of recent profiles to keep
+max_recent_profiles = 100
 
 # Custom AWS config path
 # aws_config_path = "/path/to/custom/config"
