@@ -125,6 +125,9 @@ list = false
 # Show recent profiles first
 recent = false
 
+# Maximum number of recent profiles to keep
+max_recent_profiles = 100
+
 # Custom AWS config path
 # aws_config_path = "/path/to/custom/config"
 ```

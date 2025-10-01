@@ -52,6 +52,7 @@ struct Settings {
     set_default: Option<bool>,
     list: Option<bool>,
     recent: Option<bool>,
+    max_recent_profiles: Option<usize>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Default)]
@@ -70,6 +71,7 @@ impl Default for Settings {
             set_default: Some(false),
             list: Some(false),
             recent: Some(false),
+            max_recent_profiles: Some(100),
         }
     }
 }
@@ -89,7 +91,7 @@ fn load_recent_profiles() -> RecentProfiles {
     }
 }
 
-fn save_recent_profile(profile_name: &str) {
+fn save_recent_profile(profile_name: &str, max_entries: usize) {
     let config_dir = home_dir()
         .unwrap()
         .join(".config")
@@ -104,6 +106,13 @@ fn save_recent_profile(profile_name: &str) {
         .as_secs();
 
     recent.profiles.insert(profile_name.to_string(), timestamp);
+
+    // Keep only the configured number of most recent profiles
+    if recent.profiles.len() > max_entries {
+        let mut sorted: Vec<_> = recent.profiles.iter().collect();
+        sorted.sort_by(|a, b| b.1.cmp(a.1)); // Sort by timestamp descending
+        recent.profiles = sorted.into_iter().take(max_entries).map(|(k, v)| (k.clone(), *v)).collect();
+    }
 
     let recent_path = config_dir.join("recent.toml");
     if let Ok(contents) = toml::to_string(&recent) {
@@ -365,7 +374,8 @@ fn main() {
                 std::process::exit(1);
             }
 
-            save_recent_profile(&profile.name);
+            let max_recent = settings.max_recent_profiles.unwrap_or(100);
+            save_recent_profile(&profile.name, max_recent);
 
             if set_default {
                 if let Err(e) = set_default_profile(&profile.name) {
