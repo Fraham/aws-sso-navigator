@@ -17,6 +17,30 @@ struct Profile {
     name: String,
 }
 
+fn load_profiles(config_path: &PathBuf) -> Vec<Profile> {
+    let contents = fs::read_to_string(config_path).unwrap_or_default();
+    let re = Regex::new(r"^\[profile (.+)\]").unwrap();
+    let mut profiles = Vec::new();
+    for line in contents.lines() {
+        if let Some(cap) = re.captures(line) {
+            let profile_name = cap[1].to_string();
+            let parts: Vec<&str> = profile_name.split('-').collect();
+            if parts.len() >= 3 {
+                let client = parts[0].to_string();
+                let account = parts[1].to_string();
+                let role = parts[2..].join("-");
+                profiles.push(Profile {
+                    client,
+                    account,
+                    role,
+                    name: profile_name,
+                });
+            }
+        }
+    }
+    profiles
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 struct Settings {
     default_client: Option<String>,
@@ -89,29 +113,7 @@ struct Args {
     set_default: bool,
 }
 
-fn load_profiles(config_path: PathBuf) -> Vec<Profile> {
-    let contents = fs::read_to_string(config_path).expect("Failed to read AWS config");
-    let re = Regex::new(r"^\[profile (.+)\]").unwrap();
-    let mut profiles = Vec::new();
-    for line in contents.lines() {
-        if let Some(cap) = re.captures(line) {
-            let profile_name = cap[1].to_string();
-            let parts: Vec<&str> = profile_name.split('-').collect();
-            if parts.len() >= 3 {
-                let client = parts[0].to_string();
-                let account = parts[1].to_string();
-                let role = parts[2..].join("-");
-                profiles.push(Profile {
-                    client,
-                    account,
-                    role,
-                    name: profile_name,
-                });
-            }
-        }
-    }
-    profiles
-}
+
 
 fn skim_pick(prompt: &str, options: Vec<String>) -> Option<String> {
     let input = options.join("\n");
@@ -145,7 +147,7 @@ fn main() {
     let config_path = args
         .aws_config_path
         .unwrap_or_else(|| home_dir().unwrap().join(".aws").join("config"));
-    let profiles = load_profiles(config_path);
+    let profiles = load_profiles(&config_path);
     if profiles.is_empty() {
         eprintln!("No profiles found");
         std::process::exit(1);
