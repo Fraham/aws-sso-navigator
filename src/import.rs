@@ -69,7 +69,7 @@ pub fn import_profiles(sso_session: &str, config_path: &PathBuf) -> Result<(), S
         .map_err(|e| format!("Failed to parse token: {}", e))?;
 
     // Get region from sso-session
-    let ini = rust_ini::Ini::load_from_file(config_path)
+    let ini = Ini::load_from_file(config_path)
         .map_err(|e| format!("Failed to load config: {}", e))?;
     
     let sso_region = ini.section(Some(&format!("sso-session {}", sso_session)))
