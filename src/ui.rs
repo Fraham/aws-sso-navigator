@@ -15,9 +15,6 @@ pub fn skim_pick(prompt: &str, options: Vec<String>) -> Option<String> {
     let items = item_reader.of_bufread(Cursor::new(input));
     let output = Skim::run_with(&options, Some(items))?;
 
-    if output.is_abort || output.selected_items.is_empty() {
-        None
-    } else {
-        Some(output.selected_items[0].output().to_string())
-    }
+    (!output.is_abort && !output.selected_items.is_empty())
+        .then(|| output.selected_items[0].output().to_string())
 }
