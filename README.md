@@ -4,6 +4,8 @@ A CLI tool to interactively select and login to AWS SSO profiles with fuzzy sele
 
 ## Installation
 
+Make sure you have rust installed - [instructions](https://rust-lang.org/tools/install/)
+
 ```bash
 cargo install --path .
 ```
