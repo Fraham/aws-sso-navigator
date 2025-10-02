@@ -10,6 +10,55 @@ Make sure you have rust installed - [instructions](https://rust-lang.org/tools/i
 cargo install --path .
 ```
 
+## Getting Started
+
+### Quick Start with Import
+
+If you have an existing SSO session configured, you can skip the first step
+
+1. **Configure your AWS SSO session** in `~/.aws/config`:
+
+   ```ini
+   [sso-session mysession]
+   sso_start_url = https://example.awsapps.com/start
+   sso_region = us-east-1
+   ```
+
+1. **Import profiles from your SSO session:**
+
+   ```bash
+   aws-sso-navigator import <your-sso-session-name>
+   ```
+
+   This will discover and add all accounts/roles you have access to.
+
+1. **Start using profiles:**
+
+   ```bash
+   aws-sso-navigator
+   ```
+
+   Select and login to any imported profile.
+
+### Manual Setup
+
+If you prefer to manually configure profiles or don't have an SSO session yet:
+
+1. **Add individual profiles** following the naming convention `client-account-role`:
+
+   ```ini
+   [profile myclient-dev-admin]
+   sso_session = mysession
+   sso_account_id = 123456789012
+   sso_role_name = AdministratorAccess
+   ```
+
+1. **Start navigating:**
+
+   ```bash
+   aws-sso-navigator
+   ```
+
 ## Usage
 
 ### Authentication (Default Command)
