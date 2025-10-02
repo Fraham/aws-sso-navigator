@@ -56,6 +56,15 @@ where
     crate::ui::skim_pick(prompt, options)
 }
 
+pub fn select_filtered_values<F, P>(profiles: &[Profile], filter: P, extractor: F, prompt: &str) -> Option<String>
+where
+    F: Fn(&Profile) -> String,
+    P: Fn(&Profile) -> bool,
+{
+    let filtered: Vec<_> = profiles.iter().filter(|p| filter(p)).cloned().collect();
+    select_unique_values(&filtered, extractor, prompt)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
