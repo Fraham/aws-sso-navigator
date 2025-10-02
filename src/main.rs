@@ -8,7 +8,7 @@ use dirs::home_dir;
 use std::path::PathBuf;
 
 use config::{load_recent_profiles, load_settings, save_recent_profile};
-use profile::{load_profiles, select_unique_values, select_filtered_values};
+use profile::{load_profiles, select_filtered_values, select_unique_values};
 use ui::skim_pick;
 
 #[derive(Parser, Debug)]
@@ -49,6 +49,9 @@ struct Args {
     /// Force reauthentication even if session is valid
     #[arg(long)]
     force_reauth: bool,
+    /// Open AWS console in browser instead of logging in via CLI
+    #[arg(long)]
+    console: bool,
 }
 
 fn main() {
@@ -112,10 +115,21 @@ fn main() {
             chosen_client = select_unique_values(&profiles, |p| p.client.clone(), "Select Client");
         }
         if let (Some(client), None) = (&chosen_client, &chosen_account) {
-            chosen_account = select_filtered_values(&profiles, |p| &p.client == client, |p| p.account.clone(), "Select Account");
+            chosen_account = select_filtered_values(
+                &profiles,
+                |p| &p.client == client,
+                |p| p.account.clone(),
+                "Select Account",
+            );
         }
-        if let (Some(client), Some(account), None) = (&chosen_client, &chosen_account, &chosen_role) {
-            chosen_role = select_filtered_values(&profiles, |p| &p.client == client && &p.account == account, |p| p.role.clone(), "Select Role");
+        if let (Some(client), Some(account), None) = (&chosen_client, &chosen_account, &chosen_role)
+        {
+            chosen_role = select_filtered_values(
+                &profiles,
+                |p| &p.client == client && &p.account == account,
+                |p| p.role.clone(),
+                "Select Role",
+            );
         }
     }
 
@@ -133,9 +147,26 @@ fn main() {
         std::process::exit(1);
     };
 
-    if let Err(e) = aws::login_to_profile(&profile.name, force_reauth, check_session, settings.browser.as_deref()) {
+    if let Err(e) = aws::login_to_profile(
+        &profile.name,
+        force_reauth,
+        check_session,
+        settings.browser.as_deref(),
+    ) {
         eprintln!("{}", e);
         std::process::exit(1);
+    }
+
+    if args.console {
+        if let Err(e) = aws::open_console(
+            &profile.sso_start_url,
+            &profile.sso_account_id,
+            &profile.sso_role_name,
+            settings.browser.as_deref(),
+        ) {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
     }
 
     let max_recent = settings.max_recent_profiles.unwrap_or(100);

@@ -42,3 +42,25 @@ pub fn set_default_profile(profile_name: &str) {
     unsafe { std::env::set_var("AWS_PROFILE", profile_name) };
     println!("Set {} as default AWS profile", profile_name);
 }
+
+pub fn open_console(sso_start_url: &str, sso_account_id: &str, sso_role_name: &str, browser: Option<&str>) -> Result<(), String> {
+    let url = format!("{}/#/console?account_id={}&role_name={}", sso_start_url, sso_account_id, sso_role_name);
+    
+    let mut cmd = if let Some(browser_path) = browser {
+        Command::new(browser_path)
+    } else {
+        Command::new("open")
+    };
+    
+    cmd.arg(&url);
+    
+    let status = cmd.status()
+        .map_err(|e| format!("Failed to open browser: {}", e))?;
+
+    if !status.success() {
+        return Err("Failed to open console".to_string());
+    }
+
+    println!("Opening AWS console: {}", url);
+    Ok(())
+}
