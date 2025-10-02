@@ -5,9 +5,11 @@ pub fn skim_pick(prompt: &str, options: Vec<String>) -> Option<String> {
     let input = options.join("\n");
     let prompt_str = format!("{}> ", prompt);
     let options = SkimOptionsBuilder::default()
+        .height(String::from("30%"))
         .prompt(prompt_str)
         .multi(false)
         .bind(vec!["esc:abort".to_string()])
+        .no_mouse(true)
         .build()
         .unwrap();
 
