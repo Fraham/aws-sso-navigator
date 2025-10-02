@@ -12,75 +12,104 @@ cargo install --path .
 
 ## Usage
 
-### Interactive Mode (Default)
+### Authentication (Default Command)
+
+#### Interactive Mode
 
 Navigate through clients, accounts, and roles step-by-step:
 
 ```bash
 aws-sso-navigator
+# or explicitly
+aws-sso-navigator auth
 ```
 
-### Unified Mode
+#### Unified Mode
 
 Select from all profiles in a single picker:
 
 ```bash
-aws-sso-navigator --unified
+aws-sso-navigator auth --unified
 ```
 
-### Skip Selection Steps
+#### Skip Selection Steps
 
 Pre-select specific values to skip interactive steps:
 
 ```bash
 # Skip client selection
-aws-sso-navigator --client myclient
+aws-sso-navigator auth --client myclient
 
 # Skip client and account selection
-aws-sso-navigator --client myclient --account myaccount
+aws-sso-navigator auth --client myclient --account myaccount
 
 # Skip all selections
-aws-sso-navigator --client myclient --account myaccount --role myrole
+aws-sso-navigator auth --client myclient --account myaccount --role myrole
 ```
 
-### Custom Config Path
-
-Use a different AWS config file:
-
-```bash
-aws-sso-navigator --aws-config-path /path/to/config
-```
-
-### Set as Default Profile
+#### Set as Default Profile
 
 Set the selected profile as the default AWS profile:
 
 ```bash
-aws-sso-navigator --set-default
+aws-sso-navigator auth --set-default
 ```
 
-### List All Profiles
+#### List All Profiles
 
 Show all available profiles without selection:
 
 ```bash
-aws-sso-navigator --list
+aws-sso-navigator auth --list
 ```
 
-### Recent Profiles First
+#### Recent Profiles First
 
 Show recently used profiles at the top:
 
 ```bash
-aws-sso-navigator --recent
+aws-sso-navigator auth --recent
 ```
 
-### Force Reauthentication
+#### Force Reauthentication
 
 Force login even if session is still valid:
 
 ```bash
-aws-sso-navigator --force-reauth
+aws-sso-navigator auth --force-reauth
+```
+
+#### Open AWS Console
+
+Open the AWS console in browser instead of CLI login:
+
+```bash
+aws-sso-navigator auth --console
+```
+
+### Import Profiles
+
+Import all available profiles from an SSO session:
+
+```bash
+aws-sso-navigator import <sso-session-name>
+```
+
+This command will:
+
+1. Login to the specified SSO session
+2. Discover all accounts and roles you have access to
+3. Add profiles to your AWS config file
+
+### Global Options
+
+#### Custom Config Path
+
+Use a different AWS config file:
+
+```bash
+aws-sso-navigator --aws-config-path /path/to/config auth
+aws-sso-navigator --aws-config-path /path/to/config import <session>
 ```
 
 ## Profile Format
@@ -108,6 +137,12 @@ sso_role_name = ReadOnlyAccess
 ```bash
 # Show help
 aws-sso-navigator --help
+
+# Show auth command help
+aws-sso-navigator auth --help
+
+# Show import command help
+aws-sso-navigator import --help
 
 # Show version
 aws-sso-navigator --version

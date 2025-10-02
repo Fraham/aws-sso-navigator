@@ -2,6 +2,7 @@ mod aws;
 mod config;
 mod profile;
 mod ui;
+mod import;
 
 use clap::Parser;
 use dirs::home_dir;
@@ -19,6 +20,23 @@ use ui::skim_pick;
     long_about = "A CLI tool to interactively select and login to AWS SSO profiles. Supports both step-by-step and unified selection modes."
 )]
 struct Args {
+    #[command(subcommand)]
+    command: Option<Commands>,
+    /// Path to AWS config
+    #[arg(long, global = true)]
+    aws_config_path: Option<PathBuf>,
+}
+
+#[derive(Parser, Debug)]
+enum Commands {
+    /// Authenticate to AWS SSO profiles (default)
+    Auth(AuthArgs),
+    /// Import profiles from SSO session
+    Import(ImportArgs),
+}
+
+#[derive(Parser, Debug)]
+struct AuthArgs {
     /// Optional client to skip selection
     #[arg(long)]
     client: Option<String>,
@@ -34,9 +52,6 @@ struct Args {
     /// If set, use step-by-step mode (overrides config unified_mode)
     #[arg(long)]
     step_by_step: bool,
-    /// Path to AWS config
-    #[arg(long)]
-    aws_config_path: Option<PathBuf>,
     /// Set the selected profile as the default AWS profile
     #[arg(long)]
     set_default: bool,
@@ -54,11 +69,45 @@ struct Args {
     console: bool,
 }
 
+#[derive(Parser, Debug)]
+struct ImportArgs {
+    /// SSO session name to import profiles from
+    sso_session: String,
+}
+
 fn main() {
     let args = Args::parse();
     let config_path = args
         .aws_config_path
         .unwrap_or_else(|| home_dir().unwrap().join(".aws").join("config"));
+    
+    match args.command.unwrap_or(Commands::Auth(AuthArgs {
+        client: None,
+        account: None,
+        role: None,
+        unified: false,
+        step_by_step: false,
+        set_default: false,
+        list: false,
+        recent: false,
+        force_reauth: false,
+        console: false,
+    })) {
+        Commands::Import(import_args) => {
+            if let Err(e) = import::import_profiles(&import_args.sso_session, &config_path) {
+                eprintln!("Import failed: {}", e);
+                std::process::exit(1);
+            }
+            println!("Import completed successfully");
+            return;
+        }
+        Commands::Auth(auth_args) => {
+            run_auth(auth_args, config_path);
+        }
+    }
+}
+
+fn run_auth(args: AuthArgs, config_path: PathBuf) {
     let mut profiles = load_profiles(&config_path);
 
     if profiles.is_empty() {
@@ -147,21 +196,21 @@ fn main() {
         std::process::exit(1);
     };
 
-    if let Err(e) = aws::login_to_profile(
-        &profile.name,
-        force_reauth,
-        check_session,
-        settings.browser.as_deref(),
-    ) {
-        eprintln!("{}", e);
-        std::process::exit(1);
-    }
-
     if args.console {
         if let Err(e) = aws::open_console(
             &profile.sso_start_url,
             &profile.sso_account_id,
             &profile.sso_role_name,
+            settings.browser.as_deref(),
+        ) {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    } else {
+        if let Err(e) = aws::login_to_profile(
+            &profile.name,
+            force_reauth,
+            check_session,
             settings.browser.as_deref(),
         ) {
             eprintln!("{}", e);
