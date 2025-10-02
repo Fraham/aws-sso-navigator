@@ -146,6 +146,9 @@ check_session = true
 
 # Custom AWS config path
 # aws_config_path = "/path/to/custom/config"
+
+# Custom browser for AWS SSO login
+# browser = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 ```
 
 ## Requirements

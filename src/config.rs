@@ -17,6 +17,7 @@ pub struct Settings {
     pub aws_config_path: Option<String>,
     pub force_reauth: Option<bool>,
     pub check_session: Option<bool>,
+    pub browser: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]

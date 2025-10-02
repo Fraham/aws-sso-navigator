@@ -133,7 +133,7 @@ fn main() {
         std::process::exit(1);
     };
 
-    if let Err(e) = aws::login_to_profile(&profile.name, force_reauth, check_session) {
+    if let Err(e) = aws::login_to_profile(&profile.name, force_reauth, check_session, settings.browser.as_deref()) {
         eprintln!("{}", e);
         std::process::exit(1);
     }

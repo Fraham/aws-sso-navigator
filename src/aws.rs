@@ -11,19 +11,24 @@ fn check_sso_session(profile_name: &str) -> bool {
     }
 }
 
-pub fn login_to_profile(profile_name: &str, force_reauth: bool, check_session: bool) -> Result<(), String> {
+pub fn login_to_profile(profile_name: &str, force_reauth: bool, check_session: bool, browser: Option<&str>) -> Result<(), String> {
     if check_session && !force_reauth && check_sso_session(profile_name) {
         println!("Profile {} already has a valid session", profile_name);
         return Ok(());
     }
     
     println!("Logging into AWS profile: {}", profile_name);
-    let status = Command::new("aws")
-        .arg("sso")
+    let mut cmd = Command::new("aws");
+    cmd.arg("sso")
         .arg("login")
         .arg("--profile")
-        .arg(profile_name)
-        .status()
+        .arg(profile_name);
+    
+    if let Some(browser_path) = browser {
+        cmd.env("BROWSER", browser_path);
+    }
+    
+    let status = cmd.status()
         .map_err(|e| format!("Failed to execute aws: {}", e))?;
 
     if !status.success() {
