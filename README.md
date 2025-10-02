@@ -73,6 +73,14 @@ Show recently used profiles at the top:
 aws-sso-navigator --recent
 ```
 
+### Force Reauthentication
+
+Force login even if session is still valid:
+
+```bash
+aws-sso-navigator --force-reauth
+```
+
 ## Profile Format
 
 Profiles must follow the naming convention: `client-account-role`
@@ -127,6 +135,12 @@ recent = false
 
 # Maximum number of recent profiles to keep
 max_recent_profiles = 100
+
+# Force reauthentication even if session is valid
+force_reauth = false
+
+# Check for existing valid sessions
+check_session = true
 
 # Custom AWS config path
 # aws_config_path = "/path/to/custom/config"

@@ -1,6 +1,22 @@
 use std::process::Command;
 
-pub fn login_to_profile(profile_name: &str) -> Result<(), String> {
+fn check_sso_session(profile_name: &str) -> bool {
+    let output = Command::new("aws")
+        .args(["sts", "get-caller-identity", "--profile", profile_name])
+        .output();
+    
+    match output {
+        Ok(result) => result.status.success(),
+        Err(_) => false,
+    }
+}
+
+pub fn login_to_profile(profile_name: &str, force_reauth: bool, check_session: bool) -> Result<(), String> {
+    if check_session && !force_reauth && check_sso_session(profile_name) {
+        println!("Profile {} already has a valid session", profile_name);
+        return Ok(());
+    }
+    
     println!("Logging into AWS profile: {}", profile_name);
     let status = Command::new("aws")
         .arg("sso")
