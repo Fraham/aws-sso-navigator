@@ -15,6 +15,8 @@ pub struct Settings {
     pub recent: Option<bool>,
     pub max_recent_profiles: Option<usize>,
     pub aws_config_path: Option<String>,
+    pub force_reauth: Option<bool>,
+    pub check_session: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Default)]

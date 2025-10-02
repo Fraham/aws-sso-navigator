@@ -46,6 +46,9 @@ struct Args {
     /// Show recently used profiles first
     #[arg(long)]
     recent: bool,
+    /// Force reauthentication even if session is valid
+    #[arg(long)]
+    force_reauth: bool,
 }
 
 fn main() {
@@ -59,7 +62,7 @@ fn main() {
         eprintln!("No profiles found");
         std::process::exit(1);
     }
-    
+
     let settings = load_settings();
 
     let mut chosen_client = args.client.or(settings.default_client);
@@ -74,6 +77,8 @@ fn main() {
     let set_default = args.set_default || settings.set_default.unwrap_or_default();
     let list = args.list || settings.list.unwrap_or_default();
     let recent = args.recent || settings.recent.unwrap_or_default();
+    let force_reauth = args.force_reauth || settings.force_reauth.unwrap_or_default();
+    let check_session = settings.check_session.unwrap_or(true);
 
     if recent {
         let recent = load_recent_profiles();
@@ -96,39 +101,50 @@ fn main() {
             .iter()
             .map(|p| format!("{} | {} | {} | {}", p.client, p.account, p.role, p.name))
             .collect();
-        let Some(choice) = skim_pick("Select Profile", rows) else { return };
-        let parts: Vec<&str> = choice.split('|').map(|s| s.trim()).collect();
-        chosen_client = Some(parts[0].to_string());
-        chosen_account = Some(parts[1].to_string());
-        chosen_role = Some(parts[2].to_string());
+        if let Some(choice) = skim_pick("Select Profile", rows) {
+            let parts: Vec<&str> = choice.split('|').map(|s| s.trim()).collect();
+            chosen_client = Some(parts[0].to_string());
+            chosen_account = Some(parts[1].to_string());
+            chosen_role = Some(parts[2].to_string());
+        }
     } else {
         if chosen_client.is_none() {
-            let Some(client) = select_unique_values(&profiles, |p| p.client.clone(), "Select Client") else { return };
-            chosen_client = Some(client);
+            chosen_client = select_unique_values(&profiles, |p| p.client.clone(), "Select Client");
         }
         if let (Some(client), None) = (&chosen_client, &chosen_account) {
-            let filtered: Vec<_> = profiles.iter().filter(|p| &p.client == client).cloned().collect();
-            let Some(account) = select_unique_values(&filtered, |p| p.account.clone(), "Select Account") else { return };
-            chosen_account = Some(account);
+            let filtered: Vec<_> = profiles
+                .iter()
+                .filter(|p| &p.client == client)
+                .cloned()
+                .collect();
+            chosen_account = select_unique_values(&filtered, |p| p.account.clone(), "Select Account");
         }
-        if let (Some(client), Some(account), None) = (&chosen_client, &chosen_account, &chosen_role) {
-            let filtered: Vec<_> = profiles.iter().filter(|p| &p.client == client && &p.account == account).cloned().collect();
-            let Some(role) = select_unique_values(&filtered, |p| p.role.clone(), "Select Role") else { return };
-            chosen_role = Some(role);
+        if let (Some(client), Some(account), None) = (&chosen_client, &chosen_account, &chosen_role)
+        {
+            let filtered: Vec<_> = profiles
+                .iter()
+                .filter(|p| &p.client == client && &p.account == account)
+                .cloned()
+                .collect();
+            chosen_role = select_unique_values(&filtered, |p| p.role.clone(), "Select Role");
         }
     }
 
-    let (Some(client), Some(account), Some(role)) = (chosen_client, chosen_account, chosen_role) else {
+    let (Some(client), Some(account), Some(role)) = (chosen_client, chosen_account, chosen_role)
+    else {
         eprintln!("Selection incomplete");
         std::process::exit(1);
     };
 
-    let Some(profile) = profiles.iter().find(|p| p.client == client && p.account == account && p.role == role) else {
+    let Some(profile) = profiles
+        .iter()
+        .find(|p| p.client == client && p.account == account && p.role == role)
+    else {
         eprintln!("No matching profile found");
         std::process::exit(1);
     };
 
-    if let Err(e) = aws::login_to_profile(&profile.name) {
+    if let Err(e) = aws::login_to_profile(&profile.name, force_reauth, check_session) {
         eprintln!("{}", e);
         std::process::exit(1);
     }

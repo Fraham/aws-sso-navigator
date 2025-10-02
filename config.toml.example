@@ -21,5 +21,11 @@ recent = false
 # Maximum number of recent profiles to keep (optional)
 max_recent_profiles = 100
 
+# Force reauthentication even if session is valid (optional)
+force_reauth = false
+
+# Check for existing valid sessions (optional)
+check_session = true
+
 # Custom AWS config path (optional)
 # aws_config_path = "/path/to/custom/config"
