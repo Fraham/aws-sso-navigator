@@ -130,10 +130,12 @@ mod tests {
         assert_eq!(profiles[0].account, "dev");
         assert_eq!(profiles[0].role, "admin");
         assert_eq!(profiles[0].name, "client1-dev-admin");
+        assert_eq!(profiles[0].sso_start_url, "https://example.com");
 
         assert_eq!(profiles[1].client, "client2");
         assert_eq!(profiles[1].account, "prod");
         assert_eq!(profiles[1].role, "readonly");
+        assert_eq!(profiles[1].sso_start_url, "https://example.com");
     }
 
     #[test]
