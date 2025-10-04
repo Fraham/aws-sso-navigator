@@ -3,6 +3,7 @@ mod config;
 mod profile;
 mod ui;
 mod import;
+mod tui_tree;
 
 use clap::Parser;
 use dirs::home_dir;
@@ -67,6 +68,9 @@ struct AuthArgs {
     /// Open AWS console in browser instead of logging in via CLI
     #[arg(long)]
     console: bool,
+    /// Use tui tree widget for selection
+    #[arg(long)]
+    tree: bool,
 }
 
 #[derive(Parser, Debug)]
@@ -92,6 +96,7 @@ fn main() {
         recent: false,
         force_reauth: false,
         console: false,
+        tree: false,
     })) {
         Commands::Import(import_args) => {
             if let Err(e) = import::import_profiles(&import_args.sso_session, &config_path) {
@@ -126,6 +131,7 @@ fn run_auth(args: AuthArgs, config_path: PathBuf) {
     } else {
         args.unified || settings.unified_mode.unwrap_or_default()
     };
+    let tree_mode = args.tree || settings.tree.unwrap_or_default();
     let set_default = args.set_default || settings.set_default.unwrap_or_default();
     let list = args.list || settings.list.unwrap_or_default();
     let recent = args.recent || settings.recent.unwrap_or_default();
@@ -158,6 +164,19 @@ fn run_auth(args: AuthArgs, config_path: PathBuf) {
             chosen_client = Some(parts[0].to_string());
             chosen_account = Some(parts[1].to_string());
             chosen_role = Some(parts[2].to_string());
+        }
+    } else if tree_mode {
+        match tui_tree::tui_tree_select(&profiles) {
+            Ok(Some((client, account, role))) => {
+                chosen_client = Some(client);
+                chosen_account = Some(account);
+                chosen_role = Some(role);
+            }
+            Ok(None) => return,
+            Err(e) => {
+                eprintln!("TUI error: {}", e);
+                std::process::exit(1);
+            }
         }
     } else {
         if chosen_client.is_none() {
