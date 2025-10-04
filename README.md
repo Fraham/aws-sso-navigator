@@ -136,6 +136,22 @@ Open the AWS console in browser instead of CLI login:
 aws-sso-navigator auth --console
 ```
 
+#### Tree View
+
+Use interactive tree view for hierarchical navigation:
+
+```bash
+aws-sso-navigator auth --tree
+```
+
+Tree view features:
+
+- Navigate with arrow keys (Up/Down)
+- Press Enter on clients/accounts to expand/collapse
+- Press Enter on roles to select
+- Press Esc or 'q' to quit
+- Maintains alphabetical ordering
+
 ### Import Profiles
 
 Import all available profiles from an SSO session:
@@ -209,6 +225,9 @@ default_role = "admin"
 
 # Use unified mode by default
 unified_mode = false
+
+# Use tree view by default
+tree = false
 
 # Set selected profile as default
 set_default = false
