@@ -18,6 +18,7 @@ pub struct Settings {
     pub force_reauth: Option<bool>,
     pub check_session: Option<bool>,
     pub browser: Option<String>,
+    pub tree: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
