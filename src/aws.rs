@@ -69,8 +69,13 @@ pub fn set_default_profile(profile_name: &str, config_path: &PathBuf) -> Result<
     Ok(())
 }
 
+fn normalize_sso_start_url(url: &str) -> &str {
+    url.trim_end_matches('/').trim_end_matches('#').trim_end_matches('/')
+}
+
 pub fn open_console(sso_start_url: &str, sso_account_id: &str, sso_role_name: &str, browser: Option<&str>) -> Result<(), String> {
-    let url = format!("{}/#/console?account_id={}&role_name={}", sso_start_url, sso_account_id, sso_role_name);
+    let base_url = normalize_sso_start_url(sso_start_url);
+    let url = format!("{}/#/console?account_id={}&role_name={}", base_url, sso_account_id, sso_role_name);
     
     let mut cmd = if let Some(browser_path) = browser {
         Command::new(browser_path)
@@ -89,4 +94,16 @@ pub fn open_console(sso_start_url: &str, sso_account_id: &str, sso_role_name: &s
 
     println!("Opening AWS console: {}", url);
     Ok(())
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_sso_start_url() {
+        assert_eq!(normalize_sso_start_url("https://account-1.awsapps.com/start"), "https://account-1.awsapps.com/start");
+        assert_eq!(normalize_sso_start_url("https://account-2.awsapps.com/start/"), "https://account-2.awsapps.com/start");
+        assert_eq!(normalize_sso_start_url("https://account-3.awsapps.com/start/#"), "https://account-3.awsapps.com/start");
+        assert_eq!(normalize_sso_start_url("https://account-4.awsapps.com/start/#/"), "https://account-4.awsapps.com/start");
+    }
 }
