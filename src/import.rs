@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use dirs::home_dir;
 use serde::Deserialize;
 use ini::Ini;
+use indicatif::{ProgressBar, ProgressStyle};
 
 #[derive(Deserialize)]
 struct AccountList {
@@ -90,12 +91,14 @@ pub fn import_profiles(sso_session: &str, config_path: &PathBuf) -> Result<(), S
     let accounts: AccountList = serde_json::from_slice(&accounts_output.stdout)
         .map_err(|e| format!("Failed to parse accounts: {}", e))?;
 
-    println!("Found {} accounts", accounts.account_list.len());
-
     let mut config_content = String::new();
-
-    for (i, account) in accounts.account_list.iter().enumerate() {
-        println!("[{}/{}] Processing account: {}", i + 1, accounts.account_list.len(), account.account_name);
+    let pb = ProgressBar::new(accounts.account_list.len() as u64);
+    pb.set_style(ProgressStyle::default_bar()
+        .template("{bar:40.cyan/blue} {pos}/{len} {msg}")
+        .unwrap());
+    pb.set_message("Processing accounts");
+    
+    for account in &accounts.account_list {
 
         let roles_output = Command::new("aws")
             .args(["sso", "list-account-roles", "--region", sso_region, "--access-token", &token.access_token, "--account-id", &account.account_id])
@@ -112,19 +115,17 @@ pub fn import_profiles(sso_session: &str, config_path: &PathBuf) -> Result<(), S
         for role in &roles.role_list {
             let profile_name = format!("{}-{}-{}", sso_session, account.account_name.replace(' ', "").replace('-', "_"), role.role_name.replace('-', "_"));
             
-            if ini.section(Some(&format!("profile {}", profile_name))).is_some() {
-                println!("Profile {} already exists, skipping", profile_name);
-                continue;
+            if ini.section(Some(&format!("profile {}", profile_name))).is_none() {
+                config_content.push_str(&format!(
+                    "\n[profile {}]\nsso_session = {}\nsso_account_id = {}\nsso_role_name = {}\nregion = {}\noutput = json\n",
+                    profile_name, sso_session, role.account_id, role.role_name, sso_region
+                ));
             }
-            
-            config_content.push_str(&format!(
-                "\n[profile {}]\nsso_session = {}\nsso_account_id = {}\nsso_role_name = {}\nregion = {}\noutput = json\n",
-                profile_name, sso_session, role.account_id, role.role_name, sso_region
-            ));
-
-            println!("Added profile: {}", profile_name);
         }
+        pb.inc(1);
     }
+    
+    pb.finish_with_message("Import completed!");
 
     fs::write(config_path, fs::read_to_string(config_path).unwrap_or_default() + &config_content)
         .map_err(|e| format!("Failed to write config: {}", e))?;
