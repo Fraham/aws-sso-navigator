@@ -241,6 +241,8 @@ fn run_auth(args: AuthArgs, config_path: PathBuf) {
     save_recent_profile(&profile.name, max_recent);
 
     if set_default {
-        aws::set_default_profile(&profile.name);
+        if let Err(e) = aws::set_default_profile(&profile.name, &config_path) {
+            eprintln!("Failed to set default profile: {}", e);
+        }
     }
 }

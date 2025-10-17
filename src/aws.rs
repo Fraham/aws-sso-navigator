@@ -1,4 +1,7 @@
 use std::process::Command;
+use std::path::PathBuf;
+use ini::Ini;
+use crate::profile::load_profiles;
 
 fn check_sso_session(profile_name: &str) -> bool {
     let output = Command::new("aws")
@@ -38,9 +41,32 @@ pub fn login_to_profile(profile_name: &str, force_reauth: bool, check_session: b
     Ok(())
 }
 
-pub fn set_default_profile(profile_name: &str) {
-    unsafe { std::env::set_var("AWS_PROFILE", profile_name) };
+pub fn set_default_profile(profile_name: &str, config_path: &PathBuf) -> Result<(), String> {
+    let profiles = load_profiles(config_path);
+    profiles.iter()
+        .find(|p| p.name == profile_name)
+        .ok_or_else(|| format!("Profile {} not found", profile_name))?;
+    
+    let mut ini = Ini::load_from_file(config_path)
+        .map_err(|e| format!("Failed to load AWS config: {}", e))?;
+    
+    let source_section_name = format!("profile {}", profile_name);
+    let source_data: Vec<(String, String)> = ini.section(Some(&source_section_name))
+        .ok_or_else(|| format!("Profile {} not found in config", profile_name))?
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+    
+    let mut default_section = ini.with_section(Some("default"));
+    for (key, value) in source_data {
+        default_section.set(&key, &value);
+    }
+    
+    ini.write_to_file(config_path)
+        .map_err(|e| format!("Failed to write AWS config: {}", e))?;
+    
     println!("Set {} as default AWS profile", profile_name);
+    Ok(())
 }
 
 pub fn open_console(sso_start_url: &str, sso_account_id: &str, sso_role_name: &str, browser: Option<&str>) -> Result<(), String> {
